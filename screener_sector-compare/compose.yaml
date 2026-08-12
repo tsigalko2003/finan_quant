@@ -1,0 +1,58 @@
+services:
+  web:
+    build:
+      context: .
+      target: runtime
+    image: sector-screener:local
+    entrypoint: ["uvicorn"]
+    command: ["sector_screener.web:app", "--host", "0.0.0.0", "--port", "8002"]
+    environment:
+      SCREENER_CONFIG_DIR: /app/config
+      SCREENER_CACHE_DIR: /app/cache
+      SCREENER_OUTPUT_DIR: /app/outputs
+    volumes:
+      - ./cache:/app/cache
+      - ./outputs:/app/outputs
+      - ./config:/app/config:ro
+    ports:
+      - "${SCREENER_WEB_PORT:-8002}:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    init: true
+  screener:
+    build:
+      context: .
+      target: runtime
+    image: sector-screener:local
+    environment:
+      SCREENER_CONFIG_DIR: /app/config
+      SCREENER_CACHE_DIR: /app/cache
+      SCREENER_OUTPUT_DIR: /app/outputs
+    volumes:
+      - ./cache:/app/cache
+      - ./outputs:/app/outputs
+      - ./config:/app/config:ro
+    init: true
+  screener-offline:
+    image: sector-screener:local
+    network_mode: none
+    environment:
+      SCREENER_CONFIG_DIR: /app/config
+      SCREENER_CACHE_DIR: /app/cache
+      SCREENER_OUTPUT_DIR: /app/outputs
+    volumes:
+      - ./cache:/app/cache
+      - ./outputs:/app/outputs
+      - ./config:/app/config:ro
+    init: true
+  test:
+    build:
+      context: .
+      target: test
+    image: sector-screener:test
+    command: ["-q"]

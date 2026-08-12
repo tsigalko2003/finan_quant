@@ -1,0 +1,10 @@
+services:
+  qtrends:
+    build:
+      context: .
+    image: qtrends:local
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+    command: ["demo", "--config", "configs/sample.yaml", "--output-dir", "outputs/demo"]
+

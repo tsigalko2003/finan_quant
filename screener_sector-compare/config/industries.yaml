@@ -1,0 +1,46 @@
+industries:
+  semiconductor:
+    description: "U.S.-listed semiconductor designers, IDMs, foundries, and equipment leaders"
+    sector: technology
+    yahoo_industries: [semiconductors, semiconductor-equipment-materials]
+    tickers:
+      - NVDA
+      - AMD
+      - AVGO
+      - QCOM
+      - TXN
+      - INTC
+      - MU
+      - MRVL
+      - ADI
+      - NXPI
+      - MCHP
+      - "ON"
+      - MPWR
+      - ARM
+      - TSM
+      - ASML
+      - AMAT
+      - LRCX
+      - KLAC
+      - TER
+  semiconductor_equipment:
+    description: "Semiconductor equipment and materials"
+    sector: technology
+    yahoo_industries: [semiconductor-equipment-materials]
+    tickers: [ASML, AMAT, LRCX, KLAC, TER, ENTG, MKSI, ACLS, COHR]
+  software_infrastructure:
+    description: "Large U.S.-listed infrastructure software companies"
+    sector: technology
+    yahoo_industries: [software-infrastructure]
+    tickers: [MSFT, ORCL, PLTR, PANW, CRWD, SNPS, CDNS, FTNT, DDOG, NET]
+  banks_diversified:
+    description: "Large diversified U.S. banks"
+    sector: financial-services
+    yahoo_industries: [banks-diversified]
+    tickers: [JPM, BAC, C, WFC, GS, MS, USB, PNC]
+  oil_gas_integrated:
+    description: "Large integrated oil and gas companies"
+    sector: energy
+    yahoo_industries: [oil-gas-integrated]
+    tickers: [XOM, CVX, SHEL, TTE, BP, EQNR]

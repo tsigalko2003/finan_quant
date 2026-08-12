@@ -1,0 +1,42 @@
+data:
+  provider: csv
+  csv_path: data/sample_prices.csv
+  tickers: [ALPHA, BETA, GAMMA, DELTA, EPSILON]
+  benchmark: MARKET
+  start: "2018-01-01"
+  end: null
+
+features:
+  beta_lookback: 60
+  breadth_ma_windows: [20, 50]
+  trend_lookbacks: [5, 20, 60]
+  correlation_lookback: 60
+  volatility_lookback: 20
+  pca_lookback: 126
+  min_constituent_coverage: 0.80
+
+hmm:
+  states: 3
+  min_train_size: 252
+  refit_every: 21
+  n_iter: 200
+  seeds: [7, 17, 29]
+
+xgboost:
+  horizon: 20
+  min_train_size: 252
+  refit_every: 21
+  n_estimators: 250
+  max_depth: 3
+  learning_rate: 0.04
+  subsample: 0.80
+  colsample_bytree: 0.80
+  random_state: 42
+
+signal:
+  bullish_probability: 0.60
+  bearish_probability: 0.40
+  hmm_probability: 0.50
+  bullish_breadth: 0.60
+  bearish_breadth: 0.40
+

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sector Screener Lab</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">MULTI-TICKER RESEARCH CONSOLE</p>
+      <h1>Sector Screener Lab</h1>
+    </div>
+    <div class="health"><span id="healthDot"></span><span id="healthText">Connecting</span></div>
+  </header>
+
+  <div class="disclaimer">Research screen, not an investment recommendation. Historical performance does not imply future results.</div>
+
+  <main class="workspace">
+    <aside class="controls panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">CONFIGURE</p><h2>Analysis inputs</h2></div>
+        <button type="button" class="ghost" id="resetButton">Reset</button>
+      </div>
+
+      <form id="jobForm">
+        <div class="form-grid two">
+          <label>Stage
+            <select name="stage" id="stage"><option value="poc">POC</option><option value="prod">Production</option></select>
+          </label>
+          <label>Industry
+            <input name="industry" id="industry" list="industryOptions" value="semiconductor" placeholder="semiconductor or nasdaq:semiconductor">
+            <datalist id="industryOptions"></datalist>
+          </label>
+        </div>
+        <div id="stageNote" class="context-note"></div>
+
+        <div class="form-grid two">
+          <label>Start date <span>optional</span><input type="date" name="start"></label>
+          <label>End date <span>exclusive</span><input type="date" name="end"></label>
+          <label>Include tickers <span>CSV</span><input type="text" name="include" placeholder="e.g. TSM, ASML"></label>
+          <label>Exclude tickers <span>CSV</span><input type="text" name="exclude" placeholder="e.g. INTC"></label>
+          <label>Maximum tickers <span>blank = preset</span><input type="number" name="max_tickers" min="3" max="250"></label>
+          <label>Refresh latest days <input type="number" name="refresh_tail_days" min="0" max="90" value="0"></label>
+        </div>
+
+        <details>
+          <summary>Trend, correlation & PCA</summary>
+          <div class="form-grid three detail-body">
+            <label>Short window<input type="number" name="short_window" min="5" max="63" value="20"></label>
+            <label>Mid window<input type="number" name="mid_window" min="20" max="126" value="60"></label>
+            <label>Long window<input type="number" name="long_window" min="60" max="252" value="200"></label>
+            <label>Correlation window<input type="number" name="correlation_window" min="20" max="252" value="60"></label>
+            <label>PCA window<input type="number" name="pca_window" min="40" max="252" value="60"></label>
+            <label>Ranking window<input type="number" name="capture_window" min="20" max="252" value="60"></label>
+          </div>
+        </details>
+
+        <details>
+          <summary>Regime, rebound & alert thresholds</summary>
+          <div class="form-grid three detail-body">
+            <label>HMM states<input type="number" name="hmm_states" min="2" max="6" value="3"></label>
+            <label>Rebound horizon<input type="number" name="rebound_horizon" min="5" max="40" value="10"></label>
+            <label>Rebound target %<input type="number" name="rebound_return_pct" min="2" max="15" step="0.5" value="5"></label>
+            <label>Adverse target %<input type="number" name="max_adverse_pct" min="-10" max="-1" step="0.5" value="-3"></label>
+            <label>Correction drawdown %<input type="number" name="correction_drawdown_pct" min="-30" max="-3" step="0.5" value="-8"></label>
+            <label>Min correlation<input type="number" name="minimum_correlation" min="0" max="0.95" step="0.01" value="0.55"></label>
+            <label>Alert probability<input type="number" name="rebound_probability" min="0.5" max="0.95" step="0.01" value="0.70"></label>
+            <label>Breadth thrust p.p.<input type="number" name="minimum_breadth_thrust_pct" min="5" max="40" step="1" value="10"></label>
+            <label>Minimum coverage %<input type="number" name="min_coverage_pct" min="70" max="100" step="1" value="80"></label>
+          </div>
+        </details>
+
+        <label class="check"><input type="checkbox" name="refresh_universe"><span>Refresh Nasdaq membership before a Nasdaq price job</span></label>
+        <label class="check"><input type="checkbox" name="force_download"><span>Force replacement of requested price-cache range</span></label>
+        <div id="formError" class="form-error" role="alert"></div>
+
+        <div class="actions">
+          <button type="button" data-action="universe" class="secondary">Load Nasdaq universe</button>
+          <button type="button" data-action="download" class="secondary">1 · Download / refresh</button>
+          <button type="button" data-action="analyze" class="secondary">2 · Analyze cached</button>
+          <button type="button" data-action="run" class="primary">Run both stages</button>
+        </div>
+      </form>
+    </aside>
+
+    <section class="results">
+      <div class="panel queue-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">JOBS</p><h2>Execution status</h2></div>
+          <button type="button" class="ghost" id="refreshButton">Refresh</button>
+        </div>
+        <div id="jobs" class="job-list"><div class="empty">No jobs submitted yet.</div></div>
+      </div>
+
+      <div class="panel report-panel">
+        <div class="section-heading report-heading">
+          <div><p class="eyebrow">REPORT VIEWER</p><h2 id="reportTitle">Choose a completed run</h2></div>
+          <a id="openReport" class="ghost link hidden" target="_blank" rel="noopener">Open full report</a>
+        </div>
+        <div id="snapshot" class="snapshot hidden"></div>
+        <div id="reportEmpty" class="report-empty">
+          <div class="empty-visual">↗</div>
+          <strong>No report selected</strong>
+          <p>Run an analysis or select a prior result below.</p>
+        </div>
+        <iframe id="reportFrame" class="hidden" title="Generated sector report" sandbox></iframe>
+      </div>
+
+      <div class="panel history-panel">
+        <div class="section-heading"><div><p class="eyebrow">ARCHIVE</p><h2>Completed runs</h2></div></div>
+        <div id="runs" class="run-list"><div class="empty">No completed reports.</div></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

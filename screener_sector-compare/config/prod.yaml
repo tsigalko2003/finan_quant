@@ -1,0 +1,11 @@
+stage: prod
+universe:
+  max_tickers: null
+data:
+  lookback_days: 5475
+  min_rows: 756
+  max_workers: 6
+analysis:
+  xgb_estimators: 250
+  validation_splits: 5
+

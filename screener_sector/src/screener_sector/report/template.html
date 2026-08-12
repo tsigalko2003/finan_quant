@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Semiconductor Screen — {{ as_of }} ({{ profile }})</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem; color: #1a1a1a; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #ddd; }
+  table { border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+  th, td { border: 1px solid #ddd; padding: 0.3rem 0.6rem; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { background: #f5f5f5; }
+  .caveat { background: #fff8e1; border-left: 4px solid #ffb300; padding: 0.8rem; margin: 1rem 0; }
+  .dev { background: #ffebee; border-left: 4px solid #c62828; padding: 0.8rem; margin: 1rem 0; }
+  .empty { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+<h1>Semiconductor Screen — {{ as_of }}</h1>
+<p>Profile: <strong>{{ profile }}</strong> · Window: {{ start }} to {{ as_of }} ·
+   Benchmark: {{ benchmark }}</p>
+
+{% if dev_warning %}<div class="dev">{{ dev_warning }}</div>{% endif %}
+
+<div class="caveat">
+  The universe is built from currently listed securities, so this screen and any
+  backtest derived from it carry <strong>survivorship bias</strong>: companies
+  that were delisted are absent, which inflates historical results. The universe
+  is also screened on current liquidity and price, so historical folds run on
+  companies selected for what they became, not what they were — an additional
+  forward-looking bias beyond the missing delistings. Yahoo also restates
+  adjusted prices over time, so results are not bit-reproducible across
+  re-fetches.
+</div>
+
+<h2>Rebound alarms</h2>
+{{ rebound_table }}
+
+<h2>Clusters</h2>
+{{ clusters_table }}
+
+<h2>Relative strength</h2>
+{{ strength_table }}
+
+<h2>Trend scores</h2>
+{{ trend_table }}
+</body>
+</html>

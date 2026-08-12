@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qtrends"
+version = "0.1.0"
+description = "Leakage-aware multi-ticker breadth, PCA, HMM, and XGBoost trend pipeline built around Qlib data access."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "pyqlib @ https://github.com/microsoft/qlib/archive/refs/tags/v0.9.7.tar.gz",
+  "numpy==1.26.4",
+  "pandas==2.2.3",
+  "scipy==1.14.1",
+  "scikit-learn==1.5.2",
+  "hmmlearn==0.3.3",
+  "xgboost==2.1.4",
+  "yfinance==0.2.66",
+  "PyYAML==6.0.2",
+  "pydantic==2.10.6",
+  "joblib==1.4.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.3.5",
+  "pytest-cov==6.0.0",
+]
+
+[project.scripts]
+qtrends = "qtrends.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

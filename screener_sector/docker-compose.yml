@@ -1,0 +1,16 @@
+# DATA_DIR (from .env) is the single knob for where persistent data lives.
+# Point it anywhere - external drive, NAS, synced folder - and nothing else changes.
+services:
+  screener:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ${DATA_DIR:-./data}:/data
+      - ./out:/app/out
+      - ./config:/app/config
+      - ./tests:/app/tests
+      - ./src:/app/src
+    environment:
+      DATA_DIR: /data
+      PROFILE: ${PROFILE:-dev}

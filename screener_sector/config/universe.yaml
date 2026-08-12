@@ -1,0 +1,55 @@
+industry_allow_list:
+  - Semiconductors
+  - Semiconductor Equipment & Materials
+  - Communication Equipment
+  - Electronic Components
+  - Computer Hardware
+  - Scientific & Technical Instruments
+
+theme_keywords:
+  semiconductor:
+    - semiconductor
+    - integrated circuit
+    - wafer
+    - foundry
+    - fabless
+    - lithography
+    - advanced packaging
+    - chiplet
+    - analog chip
+    - microcontroller
+  ai_compute:
+    - gpu
+    - accelerator
+    - ai chip
+    - neural processing
+    - hbm
+    - high bandwidth memory
+    - asic
+    - inference chip
+    - data center interconnect
+  optical:
+    - photonic
+    - silicon photonics
+    - optical transceiver
+    - optical component
+    - laser diode
+    - fiber optic
+    - co-packaged optics
+  design_tools:
+    - electronic design automation
+    - eda
+    - semiconductor ip
+    - chip design software
+
+seed_etfs:
+  - SOXX
+  - SMH
+  - BOTZ
+  - AIQ
+
+exchanges:
+  - NASDAQ
+  - NYSE
+  - NYSE MKT
+  - NYSE ARCA

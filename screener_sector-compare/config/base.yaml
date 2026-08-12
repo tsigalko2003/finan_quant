@@ -1,0 +1,29 @@
+seed: 42
+data:
+  provider: yahoo
+  interval: 1d
+  auto_adjust: true
+  cache_dir: cache
+  output_dir: outputs
+  min_coverage: 0.80
+  max_workers: 4
+analysis:
+  short_window: 20
+  mid_window: 60
+  long_window: 200
+  correlation_window: 60
+  pca_window: 60
+  hmm_states: 3
+  hmm_min_train: 160
+  hmm_refit_every: 20
+  capture_window: 60
+  rebound_horizon: 10
+  rebound_return: 0.05
+  max_adverse_return: -0.03
+  correction_drawdown: -0.08
+  minimum_correlation: 0.55
+  rebound_probability: 0.70
+  minimum_breadth_thrust: 0.10
+  xgb_estimators: 120
+  validation_splits: 4
+

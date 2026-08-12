@@ -1,0 +1,14 @@
+stage: poc
+universe:
+  max_tickers: 6
+data:
+  lookback_days: 900
+  min_rows: 260
+  max_workers: 2
+analysis:
+  long_window: 120
+  hmm_min_train: 100
+  xgb_estimators: 50
+  validation_splits: 3
+  correction_drawdown: -0.06
+
