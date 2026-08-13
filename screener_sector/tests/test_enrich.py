@@ -3,6 +3,9 @@ import pytest
 from screener_sector.paths import Paths
 from screener_sector.universe.enrich import (
     FakeInfoSource,
+    RateLimited,
+    YFinanceInfoSource,
+    _is_rate_limited,
     enrich,
     load_info,
 )
@@ -85,3 +88,85 @@ def test_missing_fields_become_empty_strings(paths):
     row = df.iloc[0]
     assert row["industry"] == ""
     assert row["summary"] == ""
+
+
+def test_is_rate_limited_detects_429():
+    """Test detection of 429 status code in error message."""
+    exc = RuntimeError("429 Client Error: Too Many Requests")
+    assert _is_rate_limited(exc)
+
+
+def test_is_rate_limited_detects_too_many_requests():
+    """Test detection of 'too many requests' text."""
+    exc = RuntimeError("Too Many Requests for url: https://query2.finance.yahoo.com/...")
+    assert _is_rate_limited(exc)
+
+
+def test_yfinance_info_source_uses_long_backoff_for_rate_limits():
+    """Rate-limited errors should use the long backoff sequence."""
+    attempts = []
+
+    class TracksBackoff:
+        @property
+        def info(self):
+            if len(attempts) < 2:
+                attempts.append(None)
+                raise RuntimeError("429 Client Error: Too Many Requests")
+            return {"longName": "Test"}
+
+    sleep_calls = []
+    source = YFinanceInfoSource(
+        sleep=lambda x: sleep_calls.append(x),
+        max_retries=3,
+        ticker_factory=lambda symbol: TracksBackoff(),
+        rate_limit_backoff_seconds=(100.0, 200.0, 300.0),
+    )
+    result = source.info("NVDA")
+    # Should have slept with the long backoff sequence: 100, 200, then pause
+    assert 100.0 in sleep_calls
+    assert 200.0 in sleep_calls
+
+
+def test_yfinance_info_source_uses_short_backoff_for_normal_errors():
+    """Non-rate-limit errors should use the short exponential backoff."""
+    attempts = []
+
+    class TrackBackoff:
+        @property
+        def info(self):
+            if len(attempts) < 2:
+                attempts.append(None)
+                raise RuntimeError("Connection timeout")
+            return {"longName": "Test"}
+
+    sleep_calls = []
+    source = YFinanceInfoSource(
+        sleep=lambda x: sleep_calls.append(x),
+        max_retries=3,
+        ticker_factory=lambda symbol: TrackBackoff(),
+    )
+    result = source.info("NVDA")
+    # Should have slept with the short exponential backoff: 2^0=1, 2^1=2, then pause
+    assert 1.0 in sleep_calls
+    assert 2.0 in sleep_calls
+
+
+def test_yfinance_info_source_raises_rate_limited_after_max_retries():
+    """Exhausting retries on a rate limit should raise RateLimited."""
+
+    class AlwaysRateLimited:
+        @property
+        def info(self):
+            raise RuntimeError("429 Client Error: Too Many Requests")
+
+    source = YFinanceInfoSource(
+        sleep=lambda _: None,
+        max_retries=3,
+        ticker_factory=lambda symbol: AlwaysRateLimited(),
+        rate_limit_backoff_seconds=(60.0, 180.0, 420.0),
+    )
+    with pytest.raises(RateLimited) as exc_info:
+        source.info("NVDA")
+    assert "rate-limited" in str(exc_info.value).lower()
+    assert "resumable" in str(exc_info.value).lower()
+    assert "420" in str(exc_info.value)

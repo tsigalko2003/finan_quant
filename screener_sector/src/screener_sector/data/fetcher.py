@@ -25,10 +25,20 @@ class NoNewData(FetchError):
     """The cache is already current; no new data to fetch. Not a failure."""
 
 
+class RateLimited(FetchError):
+    """Yahoo Finance has rate-limited the request. The run is resumable after a wait."""
+
+
 class PriceFetcher(Protocol):
     def history(
         self, ticker: str, start: date, end: date | None
     ) -> pd.DataFrame: ...
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    """Detect if an exception represents a 429 rate limit response."""
+    exc_str = str(exc).lower()
+    return "429" in exc_str or "too many requests" in exc_str
 
 
 def normalize_frame(df: pd.DataFrame) -> pd.DataFrame:
@@ -45,17 +55,19 @@ def normalize_frame(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class YFinanceFetcher:
-    """Adapter over yfinance with bounded retries."""
+    """Adapter over yfinance with bounded retries and rate-limit awareness."""
 
     def __init__(
         self,
         sleep: Callable[[float], None] = time.sleep,
         max_retries: int = 3,
         ticker_factory: Callable[[str], object] | None = None,
+        rate_limit_backoff_seconds: tuple[float, ...] = (60.0, 180.0, 420.0),
     ) -> None:
         self._sleep = sleep
         self._max_retries = max_retries
         self._ticker_factory = ticker_factory or _default_ticker_factory
+        self._rate_limit_backoff_seconds = rate_limit_backoff_seconds
 
     def history(self, ticker: str, start: date, end: date | None) -> pd.DataFrame:
         last_error: Exception | None = None
@@ -77,7 +89,28 @@ class YFinanceFetcher:
             except Exception as exc:  # noqa: BLE001 - deliberate: retry anything
                 last_error = exc
                 if attempt < self._max_retries - 1:
-                    self._sleep(2.0**attempt)
+                    # Use rate-limit-aware backoff
+                    if _is_rate_limited(exc):
+                        wait_time = self._rate_limit_backoff_seconds[attempt]
+                        # Honor Retry-After header if present and longer
+                        if hasattr(exc, "response") and exc.response is not None:
+                            retry_after = exc.response.headers.get("Retry-After")
+                            if retry_after:
+                                try:
+                                    retry_after_secs = float(retry_after)
+                                    wait_time = max(wait_time, retry_after_secs)
+                                except (ValueError, TypeError):
+                                    pass
+                        self._sleep(wait_time)
+                    else:
+                        self._sleep(2.0**attempt)
+        # If we exhausted retries on a rate limit, raise RateLimited
+        if _is_rate_limited(last_error):
+            raise RateLimited(
+                f"Yahoo Finance rate-limited ticker {ticker} after {self._max_retries} attempts. "
+                f"The run is resumable. Wait at least {self._rate_limit_backoff_seconds[-1]} seconds "
+                f"before retrying."
+            ) from last_error
         raise FetchError(f"failed to fetch {ticker}: {last_error}") from last_error
 
 

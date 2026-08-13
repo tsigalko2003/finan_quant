@@ -29,6 +29,9 @@ defaults:
     initial_fit_years: 5
     step_years: 1
     horizons: [5, 10, 20]
+  network:
+    enrich_pause_seconds: 1.5
+    rate_limit_backoff_seconds: [60, 180, 420]
 
 profiles:
   dev:

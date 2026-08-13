@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from screener_sector.paths import Paths
+from screener_sector.paths import Paths, VALID_TICKER_PATTERN
+from screener_sector.universe.symbols import VALID_TICKER_PATTERN as SYMBOLS_PATTERN
 
 
 def test_from_env_uses_data_dir():
@@ -55,3 +56,18 @@ def test_ensure_creates_directories(tmp_path):
     paths.ensure()
     assert paths.meta_dir.is_dir()
     assert paths.prices_dir.is_dir()
+
+
+def test_ticker_patterns_agree():
+    """Paths and symbols modules must use identical ticker validation patterns."""
+    # Test valid symbols
+    valid_tickers = ["NVDA", "BRK.A", "RDS-A", "T", "SOXX", "A0", "TSM"]
+    for ticker in valid_tickers:
+        assert VALID_TICKER_PATTERN.match(ticker), f"Paths rejects valid ticker {ticker}"
+        assert SYMBOLS_PATTERN.match(ticker), f"Symbols rejects valid ticker {ticker}"
+
+    # Test invalid symbols
+    invalid_tickers = ["", "A" * 16, "NVDA@", "NVDA$", " ", "NVDA ", " NVDA"]
+    for ticker in invalid_tickers:
+        assert not VALID_TICKER_PATTERN.match(ticker), f"Paths accepts invalid ticker {ticker}"
+        assert not SYMBOLS_PATTERN.match(ticker), f"Symbols accepts invalid ticker {ticker}"

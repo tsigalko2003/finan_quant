@@ -33,11 +33,12 @@ COPY src ./src
 RUN pip install --no-cache-dir --no-deps .
 
 COPY config ./config
+COPY --chmod=755 scripts/docker-entrypoint.sh /usr/local/bin/screener-entrypoint
 RUN mkdir -p /app/cache /app/outputs && chown -R screener:screener /app
 
-USER screener
-ENTRYPOINT ["screener"]
-CMD ["--help"]
+USER root
+ENTRYPOINT ["/usr/local/bin/screener-entrypoint"]
+CMD ["screener", "--help"]
 
 FROM runtime AS test
 

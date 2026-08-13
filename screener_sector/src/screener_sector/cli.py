@@ -94,15 +94,27 @@ def build_universe_command(
     save_symbols(paths, symbols)
     typer.echo(f"symbols: {len(symbols)}")
 
+    def progress_callback(completed: int, total: int) -> None:
+        typer.echo(f"enriched {completed}/{total}")
+
     info_frame = enrich(
         paths,
         list(symbols["ticker"]),
-        YFinanceInfoSource(),
+        YFinanceInfoSource(
+            pause=config.network.enrich_pause_seconds,
+            rate_limit_backoff_seconds=config.network.rate_limit_backoff_seconds,
+        ),
         now=datetime.now().isoformat(timespec="seconds"),
+        on_progress=progress_callback,
     )
     typer.echo(f"enriched: {len(info_frame)}")
 
-    store = PriceStore(paths, YFinanceFetcher())
+    store = PriceStore(
+        paths,
+        YFinanceFetcher(
+            rate_limit_backoff_seconds=config.network.rate_limit_backoff_seconds
+        ),
+    )
     candidates = [
         row["ticker"]
         for row in info_frame.to_dict("records")
@@ -134,7 +146,12 @@ def _candidate(row: dict, rules: ThemeRules) -> bool:
 def fetch(profile: str = ProfileOption, config_dir: str = ConfigOption) -> None:
     """Refresh the price cache for the resolved universe."""
     paths, config = _resolve(profile, config_dir)
-    store = PriceStore(paths, YFinanceFetcher())
+    store = PriceStore(
+        paths,
+        YFinanceFetcher(
+            rate_limit_backoff_seconds=config.network.rate_limit_backoff_seconds
+        ),
+    )
     tickers = list(dict.fromkeys(resolve_tickers(paths, config) + [config.benchmark]))
     result = store.refresh(tickers, config.fetch_start, config.end)
     record_stage(paths, "fetch", datetime.now().isoformat(timespec="seconds"))

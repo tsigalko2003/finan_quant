@@ -14,7 +14,14 @@ from typing import Protocol
 
 import pandas as pd
 
+from screener_sector.data.fetcher import RateLimited as _RateLimited
 from screener_sector.paths import Paths
+
+def _is_rate_limited(exc: Exception) -> bool:
+    """Detect if an exception represents a 429 rate limit response."""
+    exc_str = str(exc).lower()
+    return "429" in exc_str or "too many requests" in exc_str
+
 
 INFO_COLUMNS = [
     "ticker",
@@ -31,6 +38,10 @@ class InfoLookupError(RuntimeError):
     """Profile fields for a ticker could not be retrieved."""
 
 
+class RateLimited(InfoLookupError):
+    """Yahoo Finance has rate-limited the request. The run is resumable after a wait."""
+
+
 class InfoSource(Protocol):
     def info(self, ticker: str) -> dict[str, object]: ...
 
@@ -40,13 +51,15 @@ class YFinanceInfoSource:
         self,
         sleep: Callable[[float], None] = time.sleep,
         max_retries: int = 3,
-        pause: float = 0.3,
+        pause: float = 1.5,
         ticker_factory: Callable[[str], object] | None = None,
+        rate_limit_backoff_seconds: tuple[float, ...] = (60.0, 180.0, 420.0),
     ) -> None:
         self._sleep = sleep
         self._max_retries = max_retries
         self._pause = pause
         self._ticker_factory = ticker_factory or _default_ticker_factory
+        self._rate_limit_backoff_seconds = rate_limit_backoff_seconds
 
     def info(self, ticker: str) -> dict[str, object]:
         last: Exception | None = None
@@ -62,7 +75,28 @@ class YFinanceInfoSource:
             except Exception as exc:  # noqa: BLE001 - retry anything transient
                 last = exc
                 if attempt < self._max_retries - 1:
-                    self._sleep(2.0**attempt)
+                    # Use rate-limit-aware backoff
+                    if _is_rate_limited(exc):
+                        wait_time = self._rate_limit_backoff_seconds[attempt]
+                        # Honor Retry-After header if present and longer
+                        if hasattr(exc, "response") and exc.response is not None:
+                            retry_after = exc.response.headers.get("Retry-After")
+                            if retry_after:
+                                try:
+                                    retry_after_secs = float(retry_after)
+                                    wait_time = max(wait_time, retry_after_secs)
+                                except (ValueError, TypeError):
+                                    pass
+                        self._sleep(wait_time)
+                    else:
+                        self._sleep(2.0**attempt)
+        # If we exhausted retries on a rate limit, raise RateLimited
+        if _is_rate_limited(last):
+            raise RateLimited(
+                f"Yahoo Finance rate-limited ticker {ticker} after {self._max_retries} attempts. "
+                f"The run is resumable. Wait at least {self._rate_limit_backoff_seconds[-1]} seconds "
+                f"before retrying."
+            ) from last
         raise InfoLookupError(f"failed info for {ticker}: {last}") from last
 
 
@@ -119,7 +153,8 @@ def enrich(
     tickers: Sequence[str],
     source: InfoSource,
     now: str,
-    batch_flush: int = 50,
+    batch_flush: int = 25,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> pd.DataFrame:
     cached = load_info(paths)
     known = set(cached["ticker"]) if not cached.empty else set()
@@ -135,6 +170,8 @@ def enrich(
             cached = pd.concat([cached, pd.DataFrame(rows)], ignore_index=True)
             rows = []
             _save_info(paths, cached)
+        if on_progress is not None:
+            on_progress(len(cached), len(tickers))
         return cached
 
     try:

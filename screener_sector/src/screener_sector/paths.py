@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_DATA_DIR = "data"
-_TICKER_RE = re.compile(r"^[A-Za-z0-9.\-]{1,15}$")
+# Valid ticker symbol pattern: alphanumeric, dots, hyphens, 1-15 chars
+VALID_TICKER_PATTERN = re.compile(r"^[A-Za-z0-9.\-]{1,15}$")
+_TICKER_RE = VALID_TICKER_PATTERN
 
 
 @dataclass(frozen=True)

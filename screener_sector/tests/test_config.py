@@ -84,7 +84,7 @@ def test_fetch_start_handles_feb_29_safely():
 
     When start is Feb 29 and target year is not a leap year, clamp to Feb 28.
     """
-    from screener_sector.config import BacktestParams, Windows, TrendWeights, ReboundWeights, UniverseFilters
+    from screener_sector.config import BacktestParams, Windows, TrendWeights, ReboundWeights, UniverseFilters, NetworkParams
 
     # Create a config with Feb 29 start and warmup_years that would make target non-leap
     cfg = Config(
@@ -101,6 +101,7 @@ def test_fetch_start_handles_feb_29_safely():
         min_cluster_size=2,
         filters=UniverseFilters(min_price=5.0, min_dollar_volume=10_000_000, min_history_days=100),
         backtest=BacktestParams(warmup_years=5, label_k=10, label_forward_days=20, label_min_return=0.05, initial_fit_years=2, step_years=1, horizons=(5, 10, 20)),
+        network=NetworkParams(enrich_pause_seconds=1.5, rate_limit_backoff_seconds=(60.0, 180.0, 420.0)),
     )
 
     # 2020 is a leap year, so 2015 is not a leap year

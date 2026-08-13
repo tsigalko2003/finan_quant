@@ -11,7 +11,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from screener_sector.paths import Paths
+from screener_sector.paths import Paths, VALID_TICKER_PATTERN
 
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
@@ -62,7 +62,7 @@ def _read_pipe_table(text: str) -> pd.DataFrame:
 def parse_nasdaq_listed(text: str) -> pd.DataFrame:
     df = _read_pipe_table(text)
     df = df[df["Test Issue"] == "N"]
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "ticker": df["Symbol"].str.strip(),
             "name": df["Security Name"].str.strip(),
@@ -70,12 +70,16 @@ def parse_nasdaq_listed(text: str) -> pd.DataFrame:
             "etf": df["ETF"].str.strip() == "Y",
         }
     ).reset_index(drop=True)
+    # Filter out empty and invalid ticker symbols
+    result = result[result["ticker"].str.len() > 0]
+    result = result[result["ticker"].str.match(VALID_TICKER_PATTERN)]
+    return result.reset_index(drop=True)
 
 
 def parse_other_listed(text: str) -> pd.DataFrame:
     df = _read_pipe_table(text)
     df = df[df["Test Issue"] == "N"]
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "ticker": df["ACT Symbol"].str.strip(),
             "name": df["Security Name"].str.strip(),
@@ -83,6 +87,10 @@ def parse_other_listed(text: str) -> pd.DataFrame:
             "etf": df["ETF"].str.strip() == "Y",
         }
     ).reset_index(drop=True)
+    # Filter out empty and invalid ticker symbols
+    result = result[result["ticker"].str.len() > 0]
+    result = result[result["ticker"].str.match(VALID_TICKER_PATTERN)]
+    return result.reset_index(drop=True)
 
 
 def fetch_symbols(source: TextSource) -> pd.DataFrame:

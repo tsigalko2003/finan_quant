@@ -58,6 +58,12 @@ class BacktestParams:
 
 
 @dataclass(frozen=True)
+class NetworkParams:
+    enrich_pause_seconds: float
+    rate_limit_backoff_seconds: tuple[float, ...]
+
+
+@dataclass(frozen=True)
 class Config:
     profile: str
     start: date
@@ -72,6 +78,7 @@ class Config:
     min_cluster_size: int
     filters: UniverseFilters
     backtest: BacktestParams
+    network: NetworkParams
 
     @property
     def fetch_start(self) -> date:
@@ -114,6 +121,10 @@ class Config:
             filters=UniverseFilters(**merged["filters"]),
             backtest=BacktestParams(
                 **{**merged["backtest"], "horizons": tuple(merged["backtest"]["horizons"])}
+            ),
+            network=NetworkParams(
+                enrich_pause_seconds=float(merged["network"]["enrich_pause_seconds"]),
+                rate_limit_backoff_seconds=tuple(merged["network"]["rate_limit_backoff_seconds"]),
             ),
         )
 

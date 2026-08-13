@@ -39,6 +39,8 @@ Health endpoints are `/health/live` and `/health/ready`; interactive API documen
 
 Job execution is intentionally bounded to one background worker for a single-user local deployment. Identical active submissions are deduplicated, job history is persisted in `outputs/web_jobs.json`, and a restart marks interrupted jobs failed instead of falsely reporting success.
 
+The runtime image is self-contained; the host does not need Python or `.venv`. At startup, a short root entrypoint checks the bind-mounted `cache/` and `outputs/` directories, repairs their ownership only when they are not writable, and then drops to the unprivileged `screener` user before launching the application. This prevents permission failures after moving the project or mixing Docker-created and host-created files.
+
 ## Quick POC
 
 ```bash
@@ -139,6 +141,8 @@ docker compose run --rm screener-offline analyze --stage poc --industry semicond
 `end` is exclusive, matching `yfinance.download` behavior.
 
 ## Local development
+
+This section is optional and is not used by Docker:
 
 ```bash
 python3.12 -m venv .venv

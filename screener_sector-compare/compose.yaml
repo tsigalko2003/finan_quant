@@ -4,8 +4,7 @@ services:
       context: .
       target: runtime
     image: sector-screener:local
-    entrypoint: ["uvicorn"]
-    command: ["sector_screener.web:app", "--host", "0.0.0.0", "--port", "8002"]
+    command: ["uvicorn", "sector_screener.web:app", "--host", "0.0.0.0", "--port", "8002"]
     environment:
       SCREENER_CONFIG_DIR: /app/config
       SCREENER_CACHE_DIR: /app/cache
@@ -29,6 +28,8 @@ services:
       context: .
       target: runtime
     image: sector-screener:local
+    entrypoint: ["/usr/local/bin/screener-entrypoint", "screener"]
+    command: ["--help"]
     environment:
       SCREENER_CONFIG_DIR: /app/config
       SCREENER_CACHE_DIR: /app/cache
@@ -40,6 +41,8 @@ services:
     init: true
   screener-offline:
     image: sector-screener:local
+    entrypoint: ["/usr/local/bin/screener-entrypoint", "screener"]
+    command: ["--help"]
     network_mode: none
     environment:
       SCREENER_CONFIG_DIR: /app/config

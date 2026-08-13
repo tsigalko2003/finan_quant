@@ -75,3 +75,84 @@ def test_save_and_load_symbols_roundtrip(tmp_path):
     df = fetch_symbols(source)
     save_symbols(paths, df)
     assert len(load_symbols(paths)) == len(df)
+
+
+def test_parse_nasdaq_drops_blank_ticker():
+    """Blank tickers should be filtered out."""
+    text = """Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
+|Empty Corp - Common Stock|Q|N|N|100|N|N
+NVDA|NVIDIA Corporation - Common Stock|Q|N|N|100|N|N
+File Creation Time: 0812202617:30|||||||
+"""
+    df = parse_nasdaq_listed(text)
+    assert "NVDA" in df["ticker"].values
+    assert len(df[df["ticker"] == ""]) == 0
+
+
+def test_parse_nasdaq_drops_whitespace_only_ticker():
+    """Whitespace-only tickers should be filtered out."""
+    text = """Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
+   |Whitespace Corp - Common Stock|Q|N|N|100|N|N
+NVDA|NVIDIA Corporation - Common Stock|Q|N|N|100|N|N
+File Creation Time: 0812202617:30|||||||
+"""
+    df = parse_nasdaq_listed(text)
+    assert set(df["ticker"]) == {"NVDA"}
+
+
+def test_parse_nasdaq_drops_invalid_characters():
+    """Tickers with invalid characters should be filtered out."""
+    text = """Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
+NVDA@|Invalid Char Corp - Common Stock|Q|N|N|100|N|N
+NVDA|NVIDIA Corporation - Common Stock|Q|N|N|100|N|N
+File Creation Time: 0812202617:30|||||||
+"""
+    df = parse_nasdaq_listed(text)
+    assert set(df["ticker"]) == {"NVDA"}
+
+
+def test_parse_nasdaq_keeps_valid_symbols_with_dots_and_hyphens():
+    """Valid symbols with dots and hyphens should be kept."""
+    text = """Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares
+BRK.A|Berkshire Hathaway A|Q|N|N|100|N|N
+RDS-A|Royal Dutch Shell A|Q|N|N|100|N|N
+NVDA|NVIDIA Corporation - Common Stock|Q|N|N|100|N|N
+File Creation Time: 0812202617:30|||||||
+"""
+    df = parse_nasdaq_listed(text)
+    assert set(df["ticker"]) == {"BRK.A", "RDS-A", "NVDA"}
+
+
+def test_parse_other_listed_drops_blank_ticker():
+    """Blank tickers in other_listed should be filtered out."""
+    text = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+|Empty Corp|N|TSM|N|100|N|TSM
+TSM|Taiwan Semiconductor Manufacturing Company Ltd.|N|TSM|N|100|N|TSM
+File Creation Time: 0812202617:30||||||||
+"""
+    df = parse_other_listed(text)
+    assert "TSM" in df["ticker"].values
+    assert len(df[df["ticker"] == ""]) == 0
+
+
+def test_parse_other_listed_drops_whitespace_only_ticker():
+    """Whitespace-only tickers in other_listed should be filtered out."""
+    text = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+   |Whitespace Corp|N|TSM|N|100|N|TSM
+TSM|Taiwan Semiconductor Manufacturing Company Ltd.|N|TSM|N|100|N|TSM
+File Creation Time: 0812202617:30||||||||
+"""
+    df = parse_other_listed(text)
+    assert set(df["ticker"]) == {"TSM"}
+
+
+def test_parse_other_listed_keeps_valid_symbols_with_dots_and_hyphens():
+    """Valid symbols with dots and hyphens in other_listed should be kept."""
+    text = """ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol
+BRK.A|Berkshire Hathaway A|N|BRK.A|N|100|N|BRK.A
+RDS-A|Royal Dutch Shell A|N|RDS-A|N|100|N|RDS-A
+TSM|Taiwan Semiconductor Manufacturing Company Ltd.|N|TSM|N|100|N|TSM
+File Creation Time: 0812202617:30||||||||
+"""
+    df = parse_other_listed(text)
+    assert set(df["ticker"]) == {"BRK.A", "RDS-A", "TSM"}
