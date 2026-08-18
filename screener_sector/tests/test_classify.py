@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from screener_sector.universe.classify import ThemeRules, is_in_scope, match_themes
+from screener_sector.universe.classify import (
+    ThemeRules,
+    enrichment_candidates,
+    is_in_scope,
+    match_themes,
+)
 
 CONFIG_DIR = Path("/app/config")
 
@@ -92,3 +97,53 @@ def test_out_of_scope_when_neither_matches():
     assert not is_in_scope(
         "Beverages", "Coca-Cola", "Sells soft drinks.", rules()
     )
+
+
+def test_enrichment_candidates_keeps_name_matches_and_seeds():
+    """The prefilter that makes prod discovery survive Yahoo's rate limits."""
+    import pandas as pd
+
+    symbols = pd.DataFrame(
+        {
+            "ticker": ["AMAT", "COHR", "KO", "XYZ", "SOXX", "PHOT"],
+            "name": [
+                "Applied Materials Inc.",
+                "Coherent Corp.",
+                "Coca-Cola Co",
+                "Generic Holdings Inc",
+                "iShares Semiconductor ETF",
+                "Bright Photonics Corp",
+            ],
+            "exchange": ["NASDAQ"] * 6,
+            "etf": [False, False, False, False, True, False],
+        }
+    )
+    candidates = enrichment_candidates(symbols, rules())
+
+    assert "PHOT" in candidates          # kept on its name alone
+    assert "COHR" in candidates          # name reveals nothing; kept via seed list
+    assert "SOXX" in candidates          # benchmark, kept via seed_etfs
+    assert "KO" not in candidates
+    assert "XYZ" not in candidates
+    assert candidates == sorted(set(candidates))
+
+
+def test_enrichment_candidates_cuts_volume_substantially():
+    """Motivation for the prefilter: 8000 profile requests get rate limited."""
+    import pandas as pd
+
+    rows = [{"ticker": f"T{i}", "name": f"Generic Business {i}"} for i in range(200)]
+    for i in range(10):
+        rows[i]["name"] = f"Acme Semiconductor {i}"
+    symbols = pd.DataFrame(rows)
+    symbols["exchange"] = "NASDAQ"
+    symbols["etf"] = False
+
+    candidates = enrichment_candidates(symbols, rules())
+    assert len(candidates) < len(symbols) * 0.25
+
+
+def test_seed_tickers_are_all_strings():
+    """Guards the bare-ON YAML boolean trap."""
+    assert all(isinstance(t, str) for t in rules().seed_tickers)
+    assert "ON" in rules().seed_tickers

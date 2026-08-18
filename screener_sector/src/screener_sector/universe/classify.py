@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
 import yaml
 
 
@@ -20,6 +21,7 @@ class ThemeRules:
     industry_allow_list: frozenset[str]
     theme_keywords: dict[str, tuple[str, ...]]
     seed_etfs: tuple[str, ...]
+    seed_tickers: frozenset[str]
     exchanges: frozenset[str]
 
     @classmethod
@@ -31,6 +33,7 @@ class ThemeRules:
                 theme: tuple(words) for theme, words in raw["theme_keywords"].items()
             },
             seed_etfs=tuple(raw["seed_etfs"]),
+            seed_tickers=frozenset(str(t) for t in raw.get("seed_tickers", [])),
             exchanges=frozenset(raw["exchanges"]),
         )
 
@@ -56,16 +59,27 @@ def is_in_scope(industry: str, name: str, summary: str, rules: ThemeRules) -> bo
     return bool(match_themes(name, summary, rules))
 
 
-def enrichment_candidates(symbols: list[dict], rules: ThemeRules) -> list[str]:
-    """Filter symbols that match theme rules for enrichment."""
-    candidates = [
-        row["ticker"]
-        for row in symbols
-        if is_in_scope(
-            str(row.get("industry") or ""),
-            str(row.get("long_name") or ""),
-            str(row.get("summary") or ""),
-            rules,
-        )
-    ]
-    return candidates
+def enrichment_candidates(symbols: pd.DataFrame, rules: ThemeRules) -> list[str]:
+    """Symbols worth spending a Yahoo profile request on.
+
+    Enriching all ~8000 US-listed symbols triggers rate limiting long before it
+    finishes. Security names come free with the NASDAQ Trader files, and most
+    in-scope companies name themselves ("... Semiconductor", "... Photonics").
+    The seed lists cover the ones that do not: Coherent, Lumentum, Credo and
+    similar reveal nothing in their title.
+
+    Note this matches on NAME ONLY. The business summary does not exist yet at
+    this stage - obtaining it is precisely what the enrichment pass is for.
+    """
+    if symbols.empty:
+        return []
+
+    seeds = set(rules.seed_tickers) | set(rules.seed_etfs)
+    keep: set[str] = set()
+
+    for ticker, name in zip(symbols["ticker"], symbols["name"], strict=False):
+        symbol = str(ticker)
+        if symbol in seeds or match_themes(str(name), "", rules):
+            keep.add(symbol)
+
+    return sorted(keep)
