@@ -54,3 +54,18 @@ def is_in_scope(industry: str, name: str, summary: str, rules: ThemeRules) -> bo
     if industry in rules.industry_allow_list:
         return True
     return bool(match_themes(name, summary, rules))
+
+
+def enrichment_candidates(symbols: list[dict], rules: ThemeRules) -> list[str]:
+    """Filter symbols that match theme rules for enrichment."""
+    candidates = [
+        row["ticker"]
+        for row in symbols
+        if is_in_scope(
+            str(row.get("industry") or ""),
+            str(row.get("long_name") or ""),
+            str(row.get("summary") or ""),
+            rules,
+        )
+    ]
+    return candidates
