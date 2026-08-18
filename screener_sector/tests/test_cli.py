@@ -139,6 +139,7 @@ def test_readonly_commands_never_touch_the_network(tmp_path, monkeypatch):
         ["screen", "--profile", "dev", "--as-of", as_of],
         ["backtest", "--profile", "dev", "--as-of", as_of, "--out", str(out_dir)],
         ["report", "--profile", "dev", "--as-of", as_of, "--out", str(out_dir)],
+        ["rebound-leaders", "--profile", "dev", "--as-of", as_of, "--out", str(out_dir)],
     ]
     for argv in invocations:
         result = runner.invoke(app, argv)

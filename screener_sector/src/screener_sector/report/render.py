@@ -7,7 +7,7 @@ works, and the artifact has to say so or someone will cite it later as if it did
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
@@ -31,6 +31,7 @@ class ScreenOutput:
     clusters: ClusterResult
     strength: pd.DataFrame
     rebound: pd.DataFrame
+    rebound_leaders: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def clusters_frame(result: ClusterResult) -> pd.DataFrame:
@@ -57,6 +58,7 @@ def write_csvs(output: ScreenOutput, directory: Path) -> None:
     output.trend.to_csv(directory / "trend.csv", index=False)
     output.strength.to_csv(directory / "strength.csv", index=False)
     output.rebound.to_csv(directory / "rebound.csv", index=False)
+    output.rebound_leaders.to_csv(directory / "rebound_leaders.csv", index=False)
     clusters_frame(output.clusters).to_csv(directory / "clusters.csv", index=False)
 
 
@@ -73,6 +75,7 @@ def render_report(output: ScreenOutput, config: Config, out_dir: Path) -> Path:
         benchmark=config.benchmark,
         dev_warning=DEV_WARNING if config.profile == "dev" else "",
         rebound_table=_html_table(output.rebound),
+        rebound_leaders_table=_html_table(output.rebound_leaders),
         clusters_table=_html_table(clusters_frame(output.clusters)),
         strength_table=_html_table(output.strength),
         trend_table=_html_table(output.trend),

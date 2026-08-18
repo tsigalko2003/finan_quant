@@ -25,7 +25,7 @@ from screener_sector.universe.build import (
     load_universe,
     save_universe,
 )
-from screener_sector.universe.classify import ThemeRules
+from screener_sector.universe.classify import ThemeRules, enrichment_candidates
 from screener_sector.universe.enrich import YFinanceInfoSource, enrich
 from screener_sector.universe.symbols import (
     HttpTextSource,
@@ -94,12 +94,15 @@ def build_universe_command(
     save_symbols(paths, symbols)
     typer.echo(f"symbols: {len(symbols)}")
 
+    candidates = enrichment_candidates(symbols, rules)
+    typer.echo(f"enrichment candidates: {len(candidates)} of {len(symbols)} symbols")
+
     def progress_callback(completed: int, total: int) -> None:
         typer.echo(f"enriched {completed}/{total}")
 
     info_frame = enrich(
         paths,
-        list(symbols["ticker"]),
+        candidates,
         YFinanceInfoSource(
             pause=config.network.enrich_pause_seconds,
             rate_limit_backoff_seconds=config.network.rate_limit_backoff_seconds,
@@ -234,6 +237,48 @@ def report(
     output = run_screen(store, resolve_tickers(paths, config), config, _as_of(as_of))
     destination = render_report(output, config, Path(out))
     typer.echo(f"written: {destination}")
+
+
+@app.command("rebound-leaders")
+def rebound_leaders_command(
+    profile: str = ProfileOption,
+    as_of: str = AsOfOption,
+    config_dir: str = ConfigOption,
+    out: str = OutOption,
+) -> None:
+    """Print ranked rebound leaders per cluster from historical troughs."""
+    paths, config = _resolve(profile, config_dir)
+    store = PriceStore(paths, YFinanceFetcher())
+    output = run_screen(store, resolve_tickers(paths, config), config, _as_of(as_of))
+
+    directory = Path(out) / config.profile
+    directory.mkdir(parents=True, exist_ok=True)
+    output.rebound_leaders.to_csv(directory / "rebound_leaders.csv", index=False)
+
+    # Print ranked table per cluster.
+    if not output.rebound_leaders.empty:
+        for cluster_label in sorted(output.rebound_leaders["cluster"].unique()):
+            cluster_data = output.rebound_leaders[output.rebound_leaders["cluster"] == cluster_label].sort_values(
+                "rank_in_cluster"
+            )
+            typer.echo(f"Cluster {cluster_label}:")
+            typer.echo(
+                cluster_data[
+                    [
+                        "ticker",
+                        "rank_in_cluster",
+                        "events",
+                        "median_rebound_20d",
+                        "rebound_ratio_20d",
+                        "consistency",
+                    ]
+                ].to_string(index=False)
+            )
+            typer.echo("")
+    else:
+        typer.echo("No rebound leaders found.")
+
+    typer.echo(f"written: {directory / 'rebound_leaders.csv'}")
 
 
 if __name__ == "__main__":

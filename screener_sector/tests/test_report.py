@@ -129,3 +129,39 @@ def test_empty_frames_render_without_error(tmp_path):
     )
     path = render_report(empty, Config.load(CONFIG_DIR, "dev"), tmp_path)
     assert path.exists()
+
+
+def test_rebound_leaders_csv_is_written(output, tmp_path):
+    path = render_report(output, Config.load(CONFIG_DIR, "dev"), tmp_path)
+    rebound_leaders_csv = path.parent / "rebound_leaders.csv"
+    assert rebound_leaders_csv.exists()
+
+
+def test_html_contains_rebound_leaders_section(output, tmp_path):
+    # Create output with rebound_leaders data.
+    rebound_leaders_df = pd.DataFrame(
+        {
+            "ticker": ["NVDA", "AMD"],
+            "cluster": [0, 0],
+            "events": [5, 3],
+            "median_rebound_5d": [0.05, 0.03],
+            "median_rebound_10d": [0.10, 0.08],
+            "median_rebound_20d": [0.15, 0.10],
+            "rebound_ratio_20d": [1.2, 0.9],
+            "recovery_efficiency": [0.8, 0.6],
+            "consistency": [0.8, 0.6],
+            "median_days_to_recover": [5.0, 8.0],
+            "rank_in_cluster": [1.0, 2.0],
+        }
+    )
+    output_with_leaders = ScreenOutput(
+        as_of=output.as_of,
+        trend=output.trend,
+        clusters=output.clusters,
+        strength=output.strength,
+        rebound=output.rebound,
+        rebound_leaders=rebound_leaders_df,
+    )
+    path = render_report(output_with_leaders, Config.load(CONFIG_DIR, "dev"), tmp_path)
+    html = path.read_text()
+    assert "Rebound leaders" in html

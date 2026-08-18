@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from screener_sector.backtest.rebound_strength import rebound_leaders
 from screener_sector.config import Config
 from screener_sector.data.store import PriceStore
 from screener_sector.features.correlation import cluster_universe
@@ -51,7 +52,9 @@ def run_screen(
         empty_clusters = cluster_universe(
             pd.DataFrame(), None, config.corr_threshold, config.min_cluster_size, 1
         )
-        return ScreenOutput(as_of, pd.DataFrame(), empty_clusters, pd.DataFrame(), pd.DataFrame())
+        return ScreenOutput(
+            as_of, pd.DataFrame(), empty_clusters, pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        )
 
     trend = trend_table(frames, config.windows, config.trend_weights)
 
@@ -74,12 +77,22 @@ def run_screen(
         as_of=pd.Timestamp(as_of) if pd.Timestamp(as_of) in panel.index else None,
     )
 
+    rebound_leaders_df = rebound_leaders(
+        panel,
+        clusters.clusters,
+        config.backtest.label_k,
+        config.backtest.label_forward_days,
+        config.backtest.label_min_return,
+        config.backtest.horizons,
+    )
+
     return ScreenOutput(
         as_of=as_of,
         trend=trend,
         clusters=clusters,
         strength=strength,
         rebound=rebound,
+        rebound_leaders=rebound_leaders_df,
     )
 
 
