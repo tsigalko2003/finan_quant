@@ -26,7 +26,7 @@ from screener_sector.universe.build import (
     save_universe,
 )
 from screener_sector.universe.classify import ThemeRules, enrichment_candidates
-from screener_sector.universe.enrich import YFinanceInfoSource, enrich
+from screener_sector.universe.enrich import YFinanceInfoSource, enrich, load_info
 from screener_sector.universe.symbols import (
     HttpTextSource,
     fetch_symbols,
@@ -78,7 +78,22 @@ def info(profile: str = ProfileOption, config_dir: str = ConfigOption) -> None:
 
 @app.command("build-universe")
 def build_universe_command(
-    profile: str = ProfileOption, config_dir: str = ConfigOption
+    profile: str = ProfileOption,
+    config_dir: str = ConfigOption,
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="List enrichment candidates and exit. Makes NO Yahoo requests.",
+    ),
+    limit: int = typer.Option(
+        0,
+        "--limit",
+        help=(
+            "Enrich at most N new tickers this run, then stop. Enrichment is "
+            "cached and resumable, so repeated small runs chip away at the "
+            "universe without tripping Yahoo's rate limit. 0 means no limit."
+        ),
+    ),
 ) -> None:
     """Discover the themed universe. No-op for static profiles."""
     paths, config = _resolve(profile, config_dir)
@@ -97,12 +112,26 @@ def build_universe_command(
     candidates = enrichment_candidates(symbols, rules)
     typer.echo(f"enrichment candidates: {len(candidates)} of {len(symbols)} symbols")
 
+    already = set(load_info(paths)["ticker"]) if paths.info_parquet.exists() else set()
+    remaining = [t for t in candidates if t not in already]
+    typer.echo(f"already enriched: {len(already)} | remaining: {len(remaining)}")
+
+    if dry_run:
+        for index in range(0, len(candidates), 10):
+            typer.echo("  " + " ".join(f"{t:<6}" for t in candidates[index : index + 10]))
+        typer.echo("dry run: no Yahoo requests made.")
+        return
+
+    if limit > 0:
+        remaining = remaining[:limit]
+        typer.echo(f"limiting this run to {len(remaining)} tickers")
+
     def progress_callback(completed: int, total: int) -> None:
         typer.echo(f"enriched {completed}/{total}")
 
     info_frame = enrich(
         paths,
-        candidates,
+        remaining,
         YFinanceInfoSource(
             pause=config.network.enrich_pause_seconds,
             rate_limit_backoff_seconds=config.network.rate_limit_backoff_seconds,

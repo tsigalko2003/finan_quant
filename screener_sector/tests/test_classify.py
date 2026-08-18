@@ -147,3 +147,66 @@ def test_seed_tickers_are_all_strings():
     """Guards the bare-ON YAML boolean trap."""
     assert all(isinstance(t, str) for t in rules().seed_tickers)
     assert "ON" in rules().seed_tickers
+
+
+def test_derivative_filter_is_word_boundary_aware():
+    """A substring check on 'right' also fires on 'Bright', dropping real firms."""
+    import pandas as pd
+
+    symbols = pd.DataFrame(
+        {
+            "ticker": ["PHOT", "WRNT", "UNITX", "SOXL"],
+            "name": [
+                "Bright Photonics Corp",            # must be KEPT
+                "Acme Semiconductor Corp - Warrant",  # dropped
+                "Chip Holdings - Units",              # dropped
+                "Direxion Semiconductor Bull 3X",     # dropped as an ETF
+            ],
+            "exchange": ["NASDAQ"] * 4,
+            "etf": [False, False, False, True],
+        }
+    )
+    candidates = enrichment_candidates(symbols, rules())
+    assert "PHOT" in candidates
+    assert "WRNT" not in candidates
+    assert "UNITX" not in candidates
+    assert "SOXL" not in candidates
+
+
+def test_adrs_are_kept_not_treated_as_derivatives():
+    """ADRs are how TSM/ASML/ARM list in the US; the design wants them."""
+    import pandas as pd
+
+    symbols = pd.DataFrame(
+        {
+            "ticker": ["ARM", "TSM"],
+            "name": [
+                "Arm Holdings plc American Depositary Shares",
+                "Taiwan Semiconductor Manufacturing Company Ltd.",
+            ],
+            "exchange": ["NASDAQ", "NYSE"],
+            "etf": [False, False],
+        }
+    )
+    candidates = enrichment_candidates(symbols, rules())
+    assert candidates == ["ARM", "TSM"]
+
+
+def test_seed_etfs_are_kept_but_other_funds_are_not():
+    """SOXX is the benchmark; leveraged sector funds would dominate a cluster."""
+    import pandas as pd
+
+    symbols = pd.DataFrame(
+        {
+            "ticker": ["SOXX", "SOXL", "XSD"],
+            "name": [
+                "iShares Semiconductor ETF",
+                "Direxion Daily Semiconductor Bull 3X Shares",
+                "SPDR S&P Semiconductor ETF",
+            ],
+            "exchange": ["NASDAQ"] * 3,
+            "etf": [True, True, True],
+        }
+    )
+    candidates = enrichment_candidates(symbols, rules())
+    assert candidates == ["SOXX"]

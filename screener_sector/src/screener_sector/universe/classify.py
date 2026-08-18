@@ -74,12 +74,59 @@ def enrichment_candidates(symbols: pd.DataFrame, rules: ThemeRules) -> list[str]
     if symbols.empty:
         return []
 
-    seeds = set(rules.seed_tickers) | set(rules.seed_etfs)
+    seeds = set(rules.seed_tickers)
+    benchmark_etfs = set(rules.seed_etfs)
     keep: set[str] = set()
 
-    for ticker, name in zip(symbols["ticker"], symbols["name"], strict=False):
+    etf_flags = (
+        symbols["etf"]
+        if "etf" in symbols.columns
+        else pd.Series(False, index=symbols.index)
+    )
+
+    for ticker, name, is_etf in zip(
+        symbols["ticker"], symbols["name"], etf_flags, strict=False
+    ):
         symbol = str(ticker)
+
+        # Benchmark and seed ETFs are wanted; every other fund is not.
+        # Leveraged and inverse products (SOXL, SOXS, SSG) track the sector by
+        # construction, so they would dominate any correlation cluster while
+        # telling us nothing about an operating company's rebound.
+        if symbol in benchmark_etfs:
+            keep.add(symbol)
+            continue
+        if bool(is_etf):
+            continue
+        if _is_derivative_security(str(name)):
+            continue
+
         if symbol in seeds or match_themes(str(name), "", rules):
             keep.add(symbol)
 
     return sorted(keep)
+
+
+_DERIVATIVE_MARKERS = (
+    "warrant",
+    "right",
+    "unit",
+    "preferred",
+    "notes due",
+)
+
+# Word-boundary matched, not substring matched: a plain `"right" in name` also
+# fires on "Bright Photonics" and would silently drop a real company.
+_DERIVATIVE_RE = re.compile(
+    r"\b(?:" + "|".join(m.replace(" ", r"\s+") for m in _DERIVATIVE_MARKERS) + r")s?\b",
+    re.IGNORECASE,
+)
+
+
+def _is_derivative_security(name: str) -> bool:
+    """Warrants, rights, units and preferreds are not the common stock we screen.
+
+    Deliberately NOT excluded: American Depositary Shares. ADRs are how TSM,
+    ASML, UMC, STM and ARM list in the US, and the design explicitly wants them.
+    """
+    return bool(_DERIVATIVE_RE.search(name))
