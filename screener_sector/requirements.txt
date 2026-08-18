@@ -5,6 +5,9 @@ scikit-learn==1.5.2
 yfinance==0.2.50
 pyarrow==18.1.0
 typer==0.15.1
+# click 8.2 changed Parameter.make_metavar() to require ctx, which typer
+# 0.15.1 does not pass; unpinned, pip installs 8.4 and --help crashes.
+click==8.1.8
 jinja2==3.1.4
 pyyaml==6.0.2
 requests==2.32.3
